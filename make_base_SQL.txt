@@ -1,0 +1,111 @@
+Sub dfas()
+Dim sql_file, tab_name As String
+Dim str_Delete_SQL, str_Insert_SQL, str_src_tabname, str_bas_tabname, str_src_Schema, str_bas_Schema, str_mode, str_PriKey As String
+Call create_ddl_path
+Sheets("summary").Select
+For i_line = 2 To ActiveSheet.UsedRange.Rows.Count
+        str_bas_Schema = Trim(Cells(i_line, 1))
+        str_bas_tabname = Trim(Cells(i_line, 2))
+        str_src_Schema = Trim(Cells(i_line, 3))
+        str_src_tabname = Trim(Cells(i_line, 4))
+        str_PriKey = Trim(Cells(i_line, 5))
+        str_mode = Trim(Cells(i_line, 6))
+        'MsgBox str_src_tabname & vbCrLf & str_bas_tabname & vbCrLf & str_src_Schema & vbCrLf & str_bas_Schema
+        
+        str_Delete_SQL = "Delete from " & str_bas_Schema & "." & str_bas_tabname & vbCrLf
+        If str_mode = "F1" Then
+        str_Delete_SQL = str_Delete_SQL & "WHERE RMML_DATE = [#DATE] ;" & vbCrLf
+        Else
+        str_Delete_SQL = str_Delete_SQL & "WHERE (" & str_PriKey & ") in (" & vbCrLf
+        str_Delete_SQL = str_Delete_SQL & "SELECT " & str_PriKey & " FROM " & str_src_Schema & "." & str_src_tabname & ");" & vbCrLf
+        End If
+        'MsgBox str_Delete_SQL
+        
+        str_Insert_SQL = "INSERT INTO " & str_bas_Schema & "." & str_bas_tabname & vbCrLf
+        str_Insert_SQL = str_Insert_SQL & "VALUES (" & vbCrLf
+        str_Insert_SQL = str_Insert_SQL & make_columns(str_bas_tabname, 1)
+        str_Insert_SQL = str_Insert_SQL & ")" & vbCrLf
+        str_Insert_SQL = str_Insert_SQL & "SELECT " & make_columns(str_bas_tabname, 2)
+        str_Insert_SQL = str_Insert_SQL & "to_date([#DATE])" & vbCrLf
+        str_Insert_SQL = str_Insert_SQL & "FROM " & str_src_Schema & "." & str_src_tabname & ";" & vbCrLf
+        'MsgBox str_Insert_SQL
+        
+        
+        sql_file = Application.ActiveWorkbook.Path & "\DDL\" & str_bas_tabname & ".sql"
+        tab_name = str_Delete_SQL & vbCrLf & vbCrLf & str_Insert_SQL
+        
+        Call create_sql_file(sql_file)
+        Call write_file(sql_file, tab_name)
+Next
+
+
+
+End Sub
+Private Sub create_ddl_path()
+If FileFolderExists(Application.ActiveWorkbook.Path + "\DDL\") Then
+        'MsgBox "指定的文件夹存在！"
+    Else
+        MsgBox ("指定的文件夹不存在！将创建" + Application.ActiveWorkbook.Path + "\DDL\目录!")
+        MkDir (Application.ActiveWorkbook.Path + "\DDL\")
+    End If
+
+End Sub
+Private Sub create_sql_file(ByVal ABC As String)
+'jdasifjl
+
+'MsgBox Application.ActiveWorkbook.Path
+Dim Filename$, fso As Object
+Set fso = CreateObject("Scripting.FileSystemObject")
+Filename = ABC
+'MsgBox (Filename)
+If Len(Dir(Filename)) > 0 Then
+fso.deletefile (Filename)
+'MsgBox "delete file " + Filename
+Set txx = fso.CreateTextFile(Filename, True)
+Else
+Set txx = fso.CreateTextFile(Filename, True)
+
+End If
+
+End Sub
+
+Private Sub write_file(ByVal Filename As String, ByVal ddlText As String)
+
+'MsgBox Filename
+Open Filename For Output As #1
+    MsgBox ("内容：" + ddlText)
+    Print #1, ddlText
+Close #1
+MsgBox ("文件保存路径:" + Filename)
+End Sub
+
+
+Public Function FileFolderExists(strFullPath As String) As Boolean
+
+On Error GoTo EarlyExit
+If Not Dir(strFullPath, vbDirectory) = vbNullString Then FileFolderExists = True
+EarlyExit:
+On Error GoTo 0
+
+End Function
+
+Private Function make_columns(ByVal str_tablename As String, ByVal i_typ As Integer) As String
+Dim str_columns As String
+str_columns = ""
+'MsgBox Sheets(str_tablename).UsedRange.Rows.Count
+If i_typ = 1 Then
+    For i_lin = 2 To Sheets(str_tablename).UsedRange.Rows.Count
+        If i_lin <> Sheets(str_tablename).UsedRange.Rows.Count Then
+        str_columns = str_columns & Sheets(str_tablename).Cells(i_lin, 2) & "," & vbCrLf
+        Else
+        str_columns = str_columns & Sheets(str_tablename).Cells(i_lin, 2) & vbCrLf
+        End If
+    Next
+Else
+    For i_lin = 2 To Sheets(str_tablename).UsedRange.Rows.Count - 1
+    str_columns = str_columns & Sheets(str_tablename).Cells(i_lin, 2) & "," & vbCrLf
+    Next
+End If
+make_columns = str_columns
+End Function
+
